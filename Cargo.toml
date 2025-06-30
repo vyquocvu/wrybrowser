@@ -3,6 +3,15 @@ name = "wrybrowser"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["headless"]
+browser = ["wry", "winit"]
+headless = []
+
 [dependencies]
-wry = "*"
-winit = "0.30"
+wry = { version = "*", optional = true, default-features = false }
+winit = { version = "0.30", optional = true, default-features = false, features = ["rwh_06", "x11"] }
+
+[[bin]]
+name = "wrybrowser"
+required-features = ["browser"]
