@@ -11,6 +11,8 @@ use winit::{
 };
 #[cfg(feature = "browser")]
 use wry::{PageLoadEvent, WebView, WebViewBuilder};
+#[cfg(feature = "browser")]
+use tao::dpi::{LogicalPosition, LogicalSize};
 
 pub struct History {
     entries: RefCell<Vec<String>>,
@@ -64,7 +66,9 @@ pub struct Browser {
     #[cfg(feature = "browser")]
     pub window: Option<Window>,
     #[cfg(feature = "browser")]
-    pub webview: Option<WebView>,
+    pub webview: Option<Rc<WebView>>,
+    #[cfg(feature = "browser")]
+    pub toolbar: Option<WebView>,
     pub history: Rc<History>,
     #[cfg(feature = "browser")]
     pub modifiers: winit::keyboard::ModifiersState,
@@ -77,13 +81,61 @@ impl ApplicationHandler for Browser {
             .create_window(Window::default_attributes())
             .unwrap();
 
+        let size = window.inner_size();
+        let toolbar_height = 40.0;
+
+        let content_bounds = wry::Rect {
+            position: LogicalPosition::new(0.0, toolbar_height).into(),
+            size: LogicalSize::new(size.width as f64, size.height as f64 - toolbar_height).into(),
+        };
+
         let history = self.history.clone();
         let current = history.current().unwrap_or_else(|| "about:blank".into());
-        let webview = WebViewBuilder::new()
-            .with_url(&current)
-            .with_on_page_load_handler(move |event, url| {
-                if let PageLoadEvent::Finished = event {
-                    history.push(url);
+        let webview = Rc::new(
+            WebViewBuilder::new()
+                .with_url(&current)
+                .with_bounds(content_bounds)
+                .with_on_page_load_handler(move |event, url| {
+                    if let PageLoadEvent::Finished = event {
+                        history.push(url);
+                    }
+                })
+                .build(&window)
+                .unwrap(),
+        );
+
+        let content_clone = webview.clone();
+        let hist = self.history.clone();
+        let toolbar_bounds = wry::Rect {
+            position: LogicalPosition::new(0.0, 0.0).into(),
+            size: LogicalSize::new(size.width as f64, toolbar_height).into(),
+        };
+
+        const TOOLBAR_HTML: &str = r#"<input id='addr' style='width:60%'>
+<button id='back'>Back</button>
+<button id='forward'>Forward</button>
+<script>
+document.getElementById('back').addEventListener('click',()=>window.ipc.postMessage('back'));
+document.getElementById('forward').addEventListener('click',()=>window.ipc.postMessage('forward'));
+document.getElementById('addr').addEventListener('keydown',e=>{if(e.key==='Enter'){window.ipc.postMessage('go:'+e.target.value)}});
+</script>"#;
+
+        let toolbar = WebViewBuilder::new()
+            .with_html(TOOLBAR_HTML)
+            .with_bounds(toolbar_bounds)
+            .with_ipc_handler(move |req| {
+                let body = req.body();
+                if body == "back" {
+                    if let Some(url) = hist.back() {
+                        content_clone.load_url(&url).ok();
+                    }
+                } else if body == "forward" {
+                    if let Some(url) = hist.forward() {
+                        content_clone.load_url(&url).ok();
+                    }
+                } else if let Some(rest) = body.strip_prefix("go:") {
+                    content_clone.load_url(rest).ok();
+                    hist.push(rest.to_string());
                 }
             })
             .build(&window)
@@ -91,6 +143,7 @@ impl ApplicationHandler for Browser {
 
         self.window = Some(window);
         self.webview = Some(webview);
+        self.toolbar = Some(toolbar);
     }
 
     fn window_event(
@@ -142,6 +195,7 @@ pub fn run(initial_url: String) -> wry::Result<()> {
     let mut browser = Browser {
         window: None,
         webview: None,
+        toolbar: None,
         history: Rc::new(History::new(initial_url)),
         modifiers: ModifiersState::default(),
     };
