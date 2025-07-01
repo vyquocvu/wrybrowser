@@ -7,11 +7,13 @@ edition = "2024"
 default = ["headless"]
 browser = ["wry", "winit", "tao"]
 headless = []
+ai = ["async-openai"]
 
 [dependencies]
 wry = { version = "*", optional = true, default-features = false }
 winit = { version = "0.30", optional = true, default-features = false, features = ["rwh_06", "x11"] }
 tao = { version = "0.27", optional = true }
+async-openai = { version = "0.21", optional = true }
 
 [[bin]]
 name = "wrybrowser"

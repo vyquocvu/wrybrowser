@@ -1,6 +1,8 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
+pub mod agent;
+
 #[cfg(feature = "browser")]
 use winit::{
     application::ApplicationHandler,
@@ -200,6 +202,47 @@ pub fn run(initial_url: String) -> wry::Result<()> {
         modifiers: ModifiersState::default(),
     };
     event_loop.run_app(&mut browser).unwrap();
+    Ok(())
+}
+
+/// Runs the browser with an input agent. The browser is created headlessly and
+/// the agent is periodically polled for textual commands such as `go URL`,
+/// `back` or `forward`.
+#[cfg(feature = "browser")]
+pub fn run_with_agent(initial_url: String) -> wry::Result<()> {
+    use crate::agent::{BrowserAgent, StdinAgent};
+    use std::thread;
+    use std::time::Duration;
+
+    let mut browser = Browser {
+        #[cfg(feature = "browser")]
+        window: None,
+        #[cfg(feature = "browser")]
+        webview: None,
+        #[cfg(feature = "browser")]
+        toolbar: None,
+        history: Rc::new(History::new(initial_url)),
+        #[cfg(feature = "browser")]
+        modifiers: ModifiersState::default(),
+    };
+
+    let mut agent = StdinAgent::new();
+    loop {
+        if let Some(cmd) = agent.next_command() {
+            if cmd == "quit" {
+                break;
+            }
+            agent.process_command(&mut browser, &cmd);
+        } else {
+            thread::sleep(Duration::from_millis(100));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(feature = "browser"))]
+pub fn run_with_agent(_initial_url: String) -> std::io::Result<()> {
+    // Headless build does nothing.
     Ok(())
 }
 
