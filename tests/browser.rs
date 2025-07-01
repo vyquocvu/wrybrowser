@@ -7,7 +7,7 @@ use winit::keyboard::ModifiersState;
 #[test]
 fn browser_history_navigation() {
     let history = Rc::new(History::new("first".into()));
-    let mut browser = Browser {
+    let browser = Browser {
         #[cfg(feature = "browser")]
         window: None,
         #[cfg(feature = "browser")]
