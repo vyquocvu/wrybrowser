@@ -1,7 +1,7 @@
 [package]
 name = "wrybrowser"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [features]
 default = ["headless"]
@@ -9,7 +9,7 @@ browser = ["wry", "winit", "tao"]
 headless = []
 
 [dependencies]
-wry = { version = "*", optional = true, default-features = false }
+wry = { version = "0.47", optional = true, default-features = false, features = ["linux-body"] }
 winit = { version = "0.30", optional = true, default-features = false, features = ["rwh_06", "x11"] }
 tao = { version = "0.27", optional = true }
 

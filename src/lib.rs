@@ -190,7 +190,7 @@ document.getElementById('addr').addEventListener('keydown',e=>{if(e.key==='Enter
 }
 
 #[cfg(feature = "browser")]
-pub fn run(initial_url: String) -> wry::Result<()> {
+pub fn run(initial_url: String) -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoop::new().unwrap();
     let mut browser = Browser {
         window: None,
@@ -200,6 +200,13 @@ pub fn run(initial_url: String) -> wry::Result<()> {
         modifiers: ModifiersState::default(),
     };
     event_loop.run_app(&mut browser).unwrap();
+    Ok(())
+}
+
+#[cfg(not(feature = "browser"))]
+pub fn run(initial_url: String) -> Result<(), Box<dyn std::error::Error>> {
+    eprintln!("Headless mode: would navigate to {}", initial_url);
+    eprintln!("Browser features not enabled. Build with --features browser to run the GUI.");
     Ok(())
 }
 
